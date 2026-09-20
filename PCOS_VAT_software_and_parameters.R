@@ -1,7 +1,61 @@
+# Subclustering code
+# Input: the global Seurat object data, after doublet removal and nucleus-level QC.
+# Required metadata: celltype, orig.ident, S.Score, G2M.Score, percent.mt, percent.ribo.
+# The original cell-cycle scores and QC covariates are retained from global analysis.
+# Cell-type labels below must match the annotations in data$celltype.
+# Cluster identities are assigned from marker genes after clustering.
+
+library(Seurat)
+library(harmony)
+
+Idents(data) <- "celltype"
+
+# ASPCs
+ASPC <- subset(data, idents = "ASPC")
+DefaultAssay(ASPC) <- "RNA"
+ASPC <- SCTransform(
+  ASPC, verbose = FALSE,
+  vars.to.regress = c("S.Score", "G2M.Score", "percent.mt", "percent.ribo"),
+  variable.features.n = 3000
+)
+DefaultAssay(ASPC) <- "SCT"
+ASPC <- RunPCA(ASPC, features = VariableFeatures(ASPC), npcs = 50)
+ASPC <- RunHarmony(ASPC, group.by.vars = "orig.ident",
+                   reduction.use = "pca", dims.use = 1:50)
+ASPC <- FindNeighbors(ASPC, reduction = "harmony", dims = 1:20)
+ASPC <- FindClusters(ASPC, resolution = 0.2, algorithm = 1)
+ASPC <- RunUMAP(ASPC, reduction = "harmony", dims = 1:20)
+DimPlot(ASPC, reduction = "umap", label = TRUE)
+
+# Adipocytes
+Adipocyte <- subset(data, idents = "Adipocyte")
+DefaultAssay(Adipocyte) <- "RNA"
+Adipocyte <- SCTransform(
+  Adipocyte, verbose = FALSE,
+  vars.to.regress = c("S.Score", "G2M.Score", "percent.mt", "percent.ribo"),
+  variable.features.n = 2000
+)
+DefaultAssay(Adipocyte) <- "SCT"
+Adipocyte <- RunPCA(Adipocyte, features = VariableFeatures(Adipocyte), npcs = 50)
+Adipocyte <- RunHarmony(Adipocyte, group.by.vars = "orig.ident",
+                        reduction.use = "pca", dims.use = 1:50)
+Adipocyte <- FindNeighbors(Adipocyte, reduction = "harmony", dims = 1:20)
+Adipocyte <- FindClusters(Adipocyte, resolution = 0.13, algorithm = 1)
+Adipocyte <- RunUMAP(Adipocyte, reduction = "harmony", dims = 1:20)
+DimPlot(Adipocyte, reduction = "umap", label = TRUE)
+
+# Subclustering code
+# Input: the global Seurat object data, after doublet removal and nucleus-level QC.
+# Required metadata: celltype, orig.ident, S.Score, G2M.Score, percent.mt, percent.ribo.
+# The original cell-cycle scores and QC covariates are retained from global analysis.
+# Cell-type labels below must match the annotations in data$celltype.
+# Cluster identities are assigned from marker genes after clustering.
+
 # Python and R packages and key parameters used in the PCOS VAT snRNA-seq study
 #
-# This file contains only package versions and key parameters reported in the
-# revised manuscript. It is a parameter reference rather than an executable
+# This file summarizes package versions and key analytical parameters.
+# Subclustering code for Seurat v4.4.0 is provided at the beginning of this file.
+# Other sections are parameter references.
 
 # =============================================================================
 # Quality control and global analysis
@@ -27,6 +81,7 @@
 # Reference-based SCT integration:
 #   SelectIntegrationFeatures nfeatures = 3,000
 #   FindIntegrationAnchors normalization.method = "SCT"
+#   FindIntegrationAnchors reduction = "cca"
 #   reference = three normal-weight control samples
 # PCA and major-cell clustering:
 #   PCA features = 5,000
@@ -202,7 +257,7 @@
 # identifyOverExpressedInteractions arguments = package defaults
 # projectData PPI = PPI.human
 # computeCommunProb:
-#   type = "trimean"
+#   type = "triMean"
 #   nboot = 100
 #   seed.use = 1
 #   raw.use = FALSE
